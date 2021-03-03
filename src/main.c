@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -51,6 +52,10 @@ main(int argc, char *argv[])
 		return 1;
 	}
 	
+	SDL_Cursor* cursorInput = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
+	
+	SDL_SetCursor(cursorInput);
+	
 	/* Data */
 	
 	int running = 1;
@@ -59,10 +64,10 @@ main(int argc, char *argv[])
 	
 	int cursorX = 0, cursorY = 0;
 	
-	int linecount = 1, scrolloffset = 0;
+	int linecount = 1, scrolloffset = 0, horizontal_offset = 0;
 	struct line *lines = (struct line *)SDL_malloc(sizeof(struct line));
 	
-	int i, j, k, l; /* used for text processing */
+	int i, j, k, l, m; /* used for text processing */
 	
 	/* initialize text for lines */
 	for (i = 0; i < linecount; i++) {
@@ -79,14 +84,14 @@ main(int argc, char *argv[])
 	
 	cursor.x = cursorX;
 	cursor.y = cursorY;
-	cursor.w = 2;
+	cursor.w = 1;
 	cursor.h = font_size;
 	
 	int rectcount = 720 / fh;
 	SDL_Rect *rects = (SDL_Rect *)SDL_malloc(sizeof(SDL_Rect) * rectcount);
 	
 	for (i = 0; i < rectcount; i++) {
-		rects[i].x = 0;
+		rects[i].x = horizontal_offset;
 		rects[i].y = i * (font_size + 3);
 		rects[i].w = 0;
 		rects[i].h = font_size + 3;
@@ -116,6 +121,8 @@ main(int argc, char *argv[])
 								--cursorY;
 								if (cursorX > lines[cursorY].textcount - 1)
 									cursorX = lines[cursorY].textcount;
+								if (cursorY < scrolloffset)
+									--scrolloffset;
 							}
 							break;
 						case SDLK_DOWN:
@@ -123,6 +130,8 @@ main(int argc, char *argv[])
 								++cursorY;
 								if (cursorX > lines[cursorY].textcount - 1)
 									cursorX = lines[cursorY].textcount;
+								if (cursorY >= rectcount + scrolloffset)
+									++scrolloffset;
 							}
 							break;
 						case SDLK_LEFT:
@@ -178,6 +187,9 @@ main(int argc, char *argv[])
 							
 							++cursorY;
 							
+							if (cursorY >= rectcount + scrolloffset)
+								++scrolloffset;
+							
 							j = (lines[cursorY - 1].textcount) - cursorX;
 							
 							lines[cursorY].text = (char *)SDL_malloc(j + 1);
@@ -215,6 +227,38 @@ main(int argc, char *argv[])
 					++cursorX;
 					
 					break;
+				case SDL_MOUSEWHEEL:
+					if (event.wheel.y > 0) {
+						if (cursorY > 0) {
+							--cursorY;
+							if (cursorX > lines[cursorY].textcount - 1)
+								cursorX = lines[cursorY].textcount;
+							if (cursorY < scrolloffset)
+								--scrolloffset;
+						}
+					} else if (event.wheel.y < 0) {
+						if (cursorY < linecount - 1) {
+							++cursorY;
+							if (cursorX > lines[cursorY].textcount - 1)
+								cursorX = lines[cursorY].textcount;
+							if (cursorY >= rectcount + scrolloffset)
+								++scrolloffset;
+						}
+					}
+					break;
+				case SDL_MOUSEBUTTONDOWN:
+					switch (event.button.clicks) {
+						case 1:
+							m = (int)(round(event.button.y / (font_size + 3)) + scrolloffset);
+							
+							if (m < linecount)
+								cursorY = m;
+							
+							/* TODO: Figure out how to fix cursor mouse placement */
+							
+							break;
+					}
+					break;
 			}
 		}
 		
@@ -227,12 +271,11 @@ main(int argc, char *argv[])
 		SDL_RenderClear(renderer);
 		
 		for (i = 0; i < rectcount; i++) {
-			
-			if (i >= linecount)
+			if ((i + scrolloffset) >= linecount)
 				break;
 			
 			if (lines[i + scrolloffset].textcount > 0) {
-				rects[i].x = 0;
+				rects[i].x = horizontal_offset;
 				
 				for (j = 0; lines[i + scrolloffset].text[j] != 0; j++) {		
 					k = lines[i + scrolloffset].text[j];
@@ -258,8 +301,8 @@ main(int argc, char *argv[])
 		}
 		
 		/* a hacky way of fixing font overshooting */
-		cursor.x = l;
-		cursor.y = cursorY * (font_size + 3);
+		cursor.x = horizontal_offset + l;
+		cursor.y = (cursorY - scrolloffset) * (font_size + 3);
 		
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 		
@@ -271,6 +314,10 @@ main(int argc, char *argv[])
 	}
 	
 	/* Cleanup */
+	
+	SDL_FreeCursor(cursorInput);
+	
+	TTF_CloseFont(font);
 	
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
