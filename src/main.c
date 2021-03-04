@@ -30,37 +30,23 @@ struct line {
 char *
 file_read(char *filepath)
 {
-	SDL_RWops *rw = SDL_RWFromFile(filepath, "rb");
+	FILE *fp;
+	long size;
+	char *buf;
 	
-	if (!rw) {
-		printf("error: failed to open file '%s'\n", filepath);
-		return NULL;
-	}
+	fp = fopen(filepath, "rb");
+	fseek(fp, 0, SEEK_END);
 	
-	Sint64 fs = SDL_RWsize(rw);
-	char *buffer = (char *)SDL_malloc(fs + 1);
+	size = ftell(fp);
+	rewind(fp);
 	
-	Sint64 read = 1, total = 0;
+	buf = (char *)malloc(size + 1);
+	fread(buf, 1, size, fp);
+	fclose(fp);
 	
-	char *buf = buffer;
-	while (total < fs & read != 0) {
-		read = SDL_RWread(rw, buf, 1, (fs - total));
-		total += read;
-		buf += read;
-	}
+	buf[size] = 0;
 	
-	SDL_RWclose(rw);
-	
-	if (total != fs) {
-		free(buffer);
-		printf("error: failed to read file '%s'\n", filepath);
-		
-		return NULL;
-	}
-	
-	buffer[total] = 0;
-	
-	return buffer;
+	return buf;
 }
 
 char *
@@ -529,7 +515,7 @@ main(int argc, char *argv[])
 		
 		SDL_free(max);
 		
-		horizontal_offset = linenumber.w + 50;
+		horizontal_offset = linenumber.w + 20;
 	
 		for (i = 0; i < rectcount; i++) {
 			if ((i + scrolloffset) >= linecount)
@@ -573,7 +559,7 @@ main(int argc, char *argv[])
 					if (k == '\t')
 						text_surface = TTF_RenderText_Blended(font, tab, text_color);
 					else if (k < 32)
-						continue;
+						text_surface = TTF_RenderGlyph_Blended(font, ' ', text_color);
 					else
 						text_surface = TTF_RenderGlyph_Blended(font, k, text_color);
 					
