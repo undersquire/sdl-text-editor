@@ -3,9 +3,11 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
+#define RESOURCE(x) RESDIR"/"x
+
 /* globals */
 
-char *USER_FONT = "font.ttf";
+char *USER_FONT = RESOURCE("font.ttf");
 
 SDL_Color bg_color = { 20, 20, 20, 255 };
 SDL_Color text_color = { 150, 150, 150, 255 };
